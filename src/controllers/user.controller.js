@@ -1,7 +1,7 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.model.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { uploadOnCloudinary, removeFromCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
@@ -73,7 +73,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
   const avatar = await uploadOnCloudinary(avatarLocalPath);
   const coverImage = await uploadOnCloudinary(coverImageLocalPath);
-
+  console.log("avatar ", avatar);
   if (!avatar) {
     throw new ApiError(400, "avatar upload failed");
   }
@@ -285,13 +285,23 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
 
 const updateUserAvatar = asyncHandler(async (req, res) => {
   const avatarLocalPath = req.file?.path;
-
+  const oldAvatarPath = req.user?.avatar;
+  const oldAvatarPublicId = oldAvatarPath?.split("/").pop().split(".")[0];
+  
+  if (!oldAvatarPublicId) {
+    throw new ApiError(500, "Failed to extract public ID from old avatar URL");
+  }
+  if (oldAvatarPath) {
+    const removeResponse = await removeFromCloudinary(oldAvatarPublicId);
+    if (!removeResponse || removeResponse.result !== "ok") {
+      throw new ApiError(500, "Failed to remove old avatar from cloudinary");
+    }
+  }
   if (!avatarLocalPath) {
     throw new ApiError(400, "Please provide an avatar");
   }
 
   const avatar = await uploadOnCloudinary(avatarLocalPath);
-
   if (!avatar) {
     throw new ApiError(500, "Failed to upload avatar on cloudinary");
   }
@@ -309,6 +319,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, user, "Avatar updated successfully"));
 });
+
 const updateUserCoverImage = asyncHandler(async (req, res) => {
   const coverImageLocalPath = req.file?.path;
 
