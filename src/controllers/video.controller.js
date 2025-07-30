@@ -1,8 +1,8 @@
-import { asyncHandler } from "../utils/asyncHandler";
-import { ApiError } from "../utils/ApiError";
-import { uploadOnCloudinary } from "../utils/cloudinary";
-import { Video } from "../models/video.model";
-import { ApiResponse } from "../utils/ApiResponse";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { ApiError } from "../utils/ApiError.js";
+import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { Video } from "../models/video.model.js";
+import { ApiResponse } from "../utils/ApiResponse.js";
 
 const publishAVideo = asyncHandler(async (req, res) => {
   const videoLocalPath = req.file?.path;
