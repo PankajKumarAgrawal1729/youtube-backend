@@ -5,24 +5,33 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { Tweet } from "../models/tweet.model.js";
 
 const createTweet = asyncHandler(async (req, res) => {
-  const owner = req.user;
-  const content = req.content;
+  const { content } = req.body;
+  const owner = req.user._id;
+
+  if (!content || content.trim() === "") {
+    throw new ApiError(400, "Tweet content is required");
+  }
+
   const tweet = await Tweet.create({
     owner,
-    content,
+    content: content.trim(),
   });
 
   if (!tweet) {
-    throw new ApiError(500, "Tweet not created");
+    throw new ApiError(500, "Failed to create tweet");
   }
 
   return res
-    .status(200)
-    .json(new ApiResponse(200, "Tweet created Successfully", tweet));
+    .status(201)
+    .json(new ApiResponse(201, tweet, "Tweet created successfully"));
 });
 
 const getUserTweets = asyncHandler(async (req, res) => {
   const { userId } = req.params;
+
+  if (!userId) {
+    throw new ApiError(400, "User ID is required");
+  }
 
   const tweets = await Tweet.aggregate([
     {
@@ -35,54 +44,86 @@ const getUserTweets = asyncHandler(async (req, res) => {
         from: "users",
         localField: "owner",
         foreignField: "_id",
-        as: "tweets",
+        as: "ownerDetails",
       },
     },
-    { $unwind: "tweets" },
+    { 
+      $unwind: "$ownerDetails" 
+    },
+    {
+      $project: {
+        content: 1,
+        createdAt: 1,
+        updatedAt: 1,
+        "ownerDetails.username": 1,
+        "ownerDetails.fullname": 1,
+        "ownerDetails.avatar": 1,
+      },
+    },
+    {
+      $sort: { createdAt: -1 }
+    }
   ]);
 
-  if (!tweets) {
-    throw new ApiError(500, "Error while fetching tweets");
+  if (!tweets || tweets.length === 0) {
+    return res
+      .status(200)
+      .json(new ApiResponse(200, [], "No tweets found for this user"));
   }
 
   return res
     .status(200)
-    .json(new ApiResponse(200, "Tweets fetched Successfully", tweets));
+    .json(new ApiResponse(200, tweets, "User tweets fetched successfully"));
 });
 
 const updateTweet = asyncHandler(async (req, res) => {
-  const updateContent = req.body;
-  const userId = req.user?._id;
+  const { content } = req.body;
+  const userId = req.user._id;
   const { tweetId } = req.params;
 
-  if (!updateContent) {
-    throw new ApiError(400, "Please provide update Content");
+  if (!content || content.trim() === "") {
+    throw new ApiError(400, "Tweet content is required");
   }
 
-  const tweet = await Tweet.findByIdAndUpdate(
+  if (!tweetId) {
+    throw new ApiError(400, "Tweet ID is required");
+  }
+
+  const tweet = await Tweet.findOneAndUpdate(
     { _id: tweetId, owner: userId },
-    { $set: { content: updateContent } },
+    { $set: { content: content.trim() } },
     { new: true }
   );
 
   if (!tweet) {
-    throw new ApiError(500, "Tweet not updated");
+    throw new ApiError(404, "Tweet not found or you're not authorized to update this tweet");
   }
 
-  return res.status(200).json(200, "Tweet Updated Successfully", tweet);
+  return res
+    .status(200)
+    .json(new ApiResponse(200, tweet, "Tweet updated successfully"));
 });
 
 const deleteTweet = asyncHandler(async (req, res) => {
-  const tweetId = req.params;
-  const userId = req.user?._id;
+  const { tweetId } = req.params;
+  const userId = req.user._id;
 
-  const tweet = await Tweet.findByIdAndDelete({ _id: tweetId, owner: userId });
-
-  if (!tweet) {
-    throw new ApiError(500, "Tweet not Deleted");
+  if (!tweetId) {
+    throw new ApiError(400, "Tweet ID is required");
   }
 
-  return res.status(200).json(200, "Tweet deleted Successfully", tweet);
+  const tweet = await Tweet.findOneAndDelete({ 
+    _id: tweetId, 
+    owner: userId 
+  });
+
+  if (!tweet) {
+    throw new ApiError(404, "Tweet not found or you're not authorized to delete this tweet");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Tweet deleted successfully"));
 });
 
 export { createTweet, getUserTweets, updateTweet, deleteTweet };
