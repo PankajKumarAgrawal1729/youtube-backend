@@ -12,8 +12,8 @@ const toggleSubscription = asyncHandler(async (req, res) => {
   const channel = await User.aggregate([
     {
       $match: {
-        subscriber: new mongoose.Schema.Types.ObjectId(subscriber._id),
-        channel: new mongoose.Schema.Types.ObjectId(channelId),
+        subscriber: new mongoose.Types.ObjectId(subscriber._id),
+        channel: new mongoose.Types.ObjectId(channelId),
       },
     },
     {
@@ -22,7 +22,7 @@ const toggleSubscription = asyncHandler(async (req, res) => {
   ]);
 
   if (!channel) {
-    return new ApiError(404, `Channel Id ${channelId} is not present`);
+    throw new ApiError(404, `Channel Id ${channelId} is not present`);
   }
 
   const isExist = await Subscription.aggregate([
@@ -41,7 +41,7 @@ const toggleSubscription = asyncHandler(async (req, res) => {
       channel,
     });
     if (!toggleSubscription) {
-      return new ApiError(500, "No Action Performed");
+      throw new ApiError(500, "No Action Performed");
     }
     msg = "Un-Subscribed Successfully";
   } else {
@@ -50,7 +50,7 @@ const toggleSubscription = asyncHandler(async (req, res) => {
       channel,
     });
     if (!toggleSubscription) {
-      return new ApiError(500, "No Action Performed");
+      throw new ApiError(500, "No Action Performed");
     }
     msg = "Subscribed Successfully";
   }
@@ -64,7 +64,7 @@ const getUserChannelSubscribers = asyncHandler(async (req, res) => {
   const userChannelSubscribers = await Subscription.aggregate([
     {
       $match: {
-        channel: new mongoose.Schema.Types.ObjectId(channelId),
+        channel: new mongoose.Types.ObjectId(channelId),
       },
     },
     {
@@ -79,7 +79,7 @@ const getUserChannelSubscribers = asyncHandler(async (req, res) => {
   ]);
 
   if (!userChannelSubscribers) {
-    return new ApiError(500, "Unable To fetch Subscribers");
+    throw new ApiError(500, "Unable To fetch Subscribers");
   }
 
   return res
@@ -99,7 +99,7 @@ const getSubscribedChannels = asyncHandler(async (req, res) => {
   const subscribedChannels = await Subscription.aggregate([
     {
       $match: {
-        subscriber: new mongoose.Schema.Types.ObjectId(subscriberId),
+        subscriber: new mongoose.Types.ObjectId(subscriberId),
       },
     },
     {
@@ -114,7 +114,7 @@ const getSubscribedChannels = asyncHandler(async (req, res) => {
   ]);
 
   if (!subscribedChannels) {
-    return new ApiError(500, "Error while fetching subscribed channel");
+    throw new ApiError(500, "Error while fetching subscribed channel");
   }
 
   return res
