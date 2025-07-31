@@ -7,55 +7,43 @@ import mongoose from "mongoose";
 
 const toggleSubscription = asyncHandler(async (req, res) => {
   const { channelId } = req.params;
-  const { subscriber } = req.user;
+  const subscriber = req.user._id;
 
-  const channel = await User.aggregate([
-    {
-      $match: {
-        subscriber: new mongoose.Types.ObjectId(subscriber._id),
-        channel: new mongoose.Types.ObjectId(channelId),
-      },
-    },
-    {
-      $limit: 1,
-    },
-  ]);
+  // Check if the channel exists
+  const channel = await User.findById(channelId);
 
   if (!channel) {
     throw new ApiError(404, `Channel Id ${channelId} is not present`);
   }
 
-  const isExist = await Subscription.aggregate([
-    {
-      $match: {
-        subscriber,
-        channel,
-      },
-    },
-  ]);
+  // Check if subscription already exists
+  const isExist = await Subscription.findOne({
+    subscriber: subscriber,
+    channel: channelId,
+  });
   let toggleSubscription = undefined;
   let msg = "";
   if (isExist) {
     toggleSubscription = await Subscription.deleteOne({
-      subscriber,
-      channel,
+      subscriber: subscriber,
+      channel: channelId,
     });
-    if (!toggleSubscription) {
-      throw new ApiError(500, "No Action Performed");
+    if (!toggleSubscription.deletedCount) {
+      throw new ApiError(500, "Failed to unsubscribe from channel");
     }
-    msg = "Un-Subscribed Successfully";
+    msg = "Successfully unsubscribed from channel";
   } else {
     toggleSubscription = await Subscription.create({
-      subscriber,
-      channel,
+      subscriber: subscriber,
+      channel: channelId,
     });
     if (!toggleSubscription) {
-      throw new ApiError(500, "No Action Performed");
+      throw new ApiError(500, "Failed to subscribe to channel");
     }
-    msg = "Subscribed Successfully";
+    msg = "Successfully subscribed to channel";
   }
 
-  return res.status(200).json(new ApiResponse(200, msg, toggleSubscription));
+  return res.status(200).json(new ApiResponse(200, toggleSubscription, msg));
 });
 
 const getUserChannelSubscribers = asyncHandler(async (req, res) => {
@@ -75,11 +63,15 @@ const getUserChannelSubscribers = asyncHandler(async (req, res) => {
         as: "subscribers",
       },
     },
-    { $unwind: "subscribers" },
+    { $unwind: "$subscribers" },
   ]);
 
-  if (!userChannelSubscribers) {
-    throw new ApiError(500, "Unable To fetch Subscribers");
+  if (!userChannelSubscribers || userChannelSubscribers.length === 0) {
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(200, [], "No subscribers found for this channel")
+      );
   }
 
   return res
@@ -87,8 +79,8 @@ const getUserChannelSubscribers = asyncHandler(async (req, res) => {
     .json(
       new ApiResponse(
         200,
-        "Subscribers fetched successfully",
-        userChannelSubscribers
+        userChannelSubscribers,
+        "Channel subscribers fetched successfully"
       )
     );
 });
@@ -110,11 +102,15 @@ const getSubscribedChannels = asyncHandler(async (req, res) => {
         as: "subscribedChannels",
       },
     },
-    { $unwind: "subscribed" },
+    { $unwind: "$subscribedChannels" },
   ]);
 
-  if (!subscribedChannels) {
-    throw new ApiError(500, "Error while fetching subscribed channel");
+  if (!subscribedChannels || subscribedChannels.length === 0) {
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(200, [], "No subscribed channels found for this user")
+      );
   }
 
   return res
@@ -122,8 +118,8 @@ const getSubscribedChannels = asyncHandler(async (req, res) => {
     .json(
       new ApiResponse(
         200,
-        "Subscribed Channel fetched Successfully",
-        subscribedChannels
+        subscribedChannels,
+        "Subscribed channels fetched successfully"
       )
     );
 });
