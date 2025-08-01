@@ -7,7 +7,6 @@ import mongoose from "mongoose";
 
 const getVideoComments = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
-  const userId = req.user?._id;
   const { page = 1, limit = 10 } = req.query;
   if (!videoId) {
     throw new ApiError(400, "Video ID is required");
