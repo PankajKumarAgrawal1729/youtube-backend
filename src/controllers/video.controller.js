@@ -104,7 +104,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
           },
         }, // Project only the required fields
       },
-    ])
+    ]), options
   );
   if (!videos) {
     return new ApiError(404, "No videos found");
